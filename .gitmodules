@@ -1,0 +1,11 @@
+[submodule "third_party/glog"]
+	path = third_party/glog
+	url = https://github.com/google/glog.git
+[submodule "third_party/grpc"]
+	path = third_party/grpc
+	url = https://github.com/grpc/grpc.git
+    branch = 87b8195
+[submodule "third_party/stxxl-1.4.1"]
+	path = third_party/stxxl-1.4.1
+	url = https://github.com/stxxl/stxxl.git
+    branch = e7d36edd8152c73b115bd36cbcf566626d995434

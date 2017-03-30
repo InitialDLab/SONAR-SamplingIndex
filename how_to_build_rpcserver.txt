@@ -1,0 +1,49 @@
+(1) Install Boost (>1.55)
+(2) Install TPIE (install and build v1.1 http://www.madalgo.au.dk/tpie/doc/v1.1/setup.html)
+	 I have found other versions of TPIE have issues building.  I know v1.1 will build and works with our software.  Also, on our systems, install to /usr
+(3) Install gflags (google commandline flags) https://gflags.github.io/gflags/ (May not be needed)
+	# install gflags
+	git clone git@github.com:gflags/gflags.git
+	cd gflags
+	Git checkout v2.1.0
+	Mkdir build
+	Cd build
+	Ccmake ..
+(4) Install glog (google logging system) https://github.com/google/glog/ We use another version because the newer version requires build tools not easily available.
+	# install glog
+	git clone https://github.com/google/glog.git
+	cd glog
+	git checkout v0.3.3
+	./configure
+	make
+	sudo make install
+
+(4) Install google protobuf version 3 https://github.com/google/protobuf/
+	I am using the alpha version for protobuf.  When the newer non-alpha version become available we should start using that.
+	# install protobuf
+	git clone https://github.com/google/protobuf/
+	cd protobuf
+	git checkout v3.0.0
+	./autogen.sh
+	./configure --prefix=/usr
+	make
+	make check
+	sudo make install
+	Cd ..
+(5) Install google grpc (nly need to build c++ code.  don't add option to build other libraries, such as csharp) 
+	# install grpc
+	git clone https://github.com/grpc/grpc.git
+	cd grpc
+	git checkout release-0_11_0
+	git submodule update --init
+	make
+	make test
+	sudo make install
+(6) To build the protocal buffer files, you must run the command by hand:
+	protoc --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` sampling_api.proto
+	protoc --cpp_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` sampling_api.proto
+	protoc --cpp_out=. server_state.proto
+
+(7) build the server
+  cmake .
+  make

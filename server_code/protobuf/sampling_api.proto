@@ -1,0 +1,307 @@
+/*
+Copyright 2017 InitialDLab
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+// Protocol buffers implementation to support using gRPC to interact with 
+// a sampling database using RS-trees
+//
+// Robert Christensen
+
+syntax = "proto3";
+
+package serverProto;
+
+service SamplingDatabase
+{
+    /* Request the sampling structures stored in the database */
+    rpc ListSamplingStructure(ListStructuresRequest) returns (ListStructuresResponse) { }
+
+    /* Request the data structure build the appropriate sampled structure */
+    rpc BuildStructure(BuildRequest) returns (BuildResponse) { }
+    
+    /* Requests a table be dropped from the database */
+    rpc DropStructure(DropRequest) returns (DropResponse) { }
+
+    /* register a new query for the database and return the id to enable collecting information from the query */
+    rpc StartQuery(StartQueryRequest) returns (StartQueryResponse) { }
+
+    /* get data for a specific query */
+    rpc Query(QueryRequest) returns (QueryResponse) { }
+
+    /* insert additional elements into a specific data structure */
+    rpc Insert(InsertItemsRequest) returns (InsertItemsResponse) { }
+}
+
+
+/* several types of payload formats will be supported */
+enum SampleStructureType
+{
+    /* the structure only contains the location information */
+    NO_PAYLOAD    = 0;
+    /* an int32 payload will be included */
+    INT_PAYLOAD   = 1;
+    /* a float payload will be included */
+    FLOAT_PAYLOAD = 2;
+}
+
+/* query algorithms supported by the system */
+enum QueryAlgorithms
+{
+    RS_TREE_SAMPLE = 0;
+}
+
+/* enumerator for the type which is used to collect statistical information */
+enum StatisicalType
+{
+    INT_TYPE   = 0;
+    FLOAT_TYPE = 1;
+}
+
+/* this message contains specific information about a single sampled structure */
+message DataSampleInformation
+{
+    /* The name of the index */
+    string name = 1;
+
+    /* The number of elements in the sample */
+    int64 count = 2;
+
+    /* The number of seconds since it was last rebuilt */
+    int64 sec_since_rebuild = 3;
+
+    /* The payload configuration of this sampling structure */
+    SampleStructureType payload_type = 4;
+}
+
+/* a request to get a list of the structures in the database */
+message ListStructuresRequest
+{
+    /* we currently do not have any options.  In the future we might have options to filter by various criteria */
+}
+
+/* a response of a list of the data structures stored in the database */
+message ListStructuresResponse
+{
+    /* a list of the structures stored in the database */
+    repeated DataSampleInformation structures = 1;
+}
+
+/* a request message for a sample to be taken over a CSV file */
+message BuildRequest
+{
+    /* the name the data structure will be identified by using the API */
+    string name = 1;
+
+    /* when constructing the sampled structure.  If something with the same name already exists, should we delete it before creating this one? */
+    bool force = 2;
+
+    /* the type of payload we would like this sampled structure to support */
+    SampleStructureType payload_type = 3;
+
+    /* a path to the input file (we are supporting ',' separated files with a particular format as input) */
+    string input_location = 4;
+
+    /* should we remove the input file after digesting its contents into our database? */
+    bool remove_input = 5;
+}
+
+/* response message for a build request */
+message BuildResponse
+{
+    /* If will contain the information about the newly created sample */
+    DataSampleInformation structure = 1;
+
+    /* is some error happened (such as force=false and the structure already exists) this will report the error as a human readable string */
+    string error_information = 2;
+}
+
+/* a request to drop an index with a particular name */
+message DropRequest
+{
+    // the name of the data structure to remove
+    string structure_name = 1;
+}
+
+/* response for the drop request */
+message DropResponse
+{
+    bool success = 1;
+}
+
+/* a point */
+message point
+{
+    /* the latitude of this point */
+    float lat = 1;
+
+    /* the longitude of this point */
+    float lon = 2;
+
+    /* the time of this point (seconds since 1970) */
+    int32 time = 3;
+}
+
+/* a box */
+message box
+{
+    /* the minimum point for the box */
+    point min_point = 1;
+
+    /* the maximum point for the box */
+    point max_point = 2;
+}
+
+/* a data element for querying */
+message element
+{
+    /* the OID of the data element */
+    string OID = 4;
+  
+    /* the point of the data element */
+    point location = 5;
+
+    /* the payload of the data element */
+    oneof payload {
+        int32 int_payload = 6;
+        float float_payload = 7;
+    }
+}
+
+/* general statistic information which will be collected during a query */
+message ElementStatistics
+{
+    /* this identified the data type used to collect the statistics for this block. */
+    StatisicalType type = 1;
+
+    /* the number of elements in this count */
+    int64 sample_size = 2;
+
+    /* estimated number of elements in this region */
+    int64 total_count = 3;
+
+    /* the mean of the sample */
+    double mean = 4;
+    double mean_confidence_region = 5;
+    float  mean_confidence_level = 6;
+
+    /* the standard deviation of the sample */
+    double stdev = 8;
+
+    oneof min 
+    {
+        int32 int_min   = 20;
+        float float_min = 21;
+    }
+    
+    oneof max
+    {
+        int32 int_max   = 30;
+        float float_max = 31;
+    }  
+}
+
+
+/* a request to start a sampling query */
+message StartQueryRequest
+{
+    /* the name of the structure to query */
+    string structure_name = 1;
+
+    /* the region to perform the query */
+    box query_region = 2;
+
+    /* if this is true, the OID of the elements will be returned in the request */
+    bool return_OID = 4;
+
+    /* if this is true, a latitude and longitude will be requested for the query */
+    bool return_location = 5;
+    
+    /* if this is true, time information will be returned with the query */
+    bool return_time = 6;
+    
+    /* if this is true, the payload will be returned with this query */
+    bool return_payload = 7;
+
+    /* since the query can continue, we will be setting some value to suggest to the server how long we should keep it around
+       before cleaning up the query.  This is a suggestion, and should be several second (never hours or days)
+    */
+    int32 suggested_ttl = 8;
+
+    /* which algorithm this query should be using. */
+    QueryAlgorithms algorithm = 9;
+}
+
+/* response for the query request */
+message StartQueryResponse
+{
+    /* the query ID to be used to request information for this query region */
+    int32 query_id = 1;
+}
+
+/* query request */
+message QueryRequest
+{
+    /* the query ID of the query to continue */
+    int32 query_id = 1;
+
+    /* the (maximum) number of elements which will be returned */
+    int32 elements_to_return = 2;
+}
+
+/* the response to the query, with the requested data */
+message QueryResponse
+{
+
+    /* the number of samples collected in the last request */
+    int32 sample_count_last  = 2;
+
+    /* the number of samples collected for all requests */
+    int32 sample_count_total = 3;
+    
+    /* statistics for this most recent query request */
+    ElementStatistics lat_last     = 6;
+    ElementStatistics lon_last     = 7;
+    ElementStatistics time_last    = 8;
+    ElementStatistics payload_last = 9;
+
+    /* statistics for the entire lifetime of this query id (all queries using this query id) */
+    ElementStatistics lat_total     = 11;
+    ElementStatistics lon_total     = 12;
+    ElementStatistics time_total    = 13;
+    ElementStatistics payload_total = 14;
+
+    repeated element elements = 15;
+}
+
+/* this is a request to insert additional data into a specific data structure */
+message InsertItemsRequest
+{
+    /* The name of the index */
+    string name = 1;
+
+    /* the data elements to insert */
+    repeated element elements = 2;
+}
+
+/* The response to command to insert elements into a specific data structure */
+message InsertItemsResponse
+{
+  /* nothing in here for now */
+}
