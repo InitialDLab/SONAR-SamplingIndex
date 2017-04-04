@@ -56,6 +56,7 @@ namespace bm = boost::mpl;
 
 //using RNG = std::default_random_engine;
 using RNG = boost::random::taus88;
+using RNG_DEV = std::random_device;
 
 struct Stats {
     size_t internal_nodes = 0;
@@ -206,7 +207,7 @@ namespace rtree {
         naive_sample_query_cursor TARGS
         naive_sample_query(Geometry const& query) {
             return naive_sample_query_cursor TARGS
-                (query, root_node_entry, get_block_manager(), rng);
+                (query, root_node_entry, get_block_manager(), rng_dev);
         }
 
         /*
@@ -216,7 +217,7 @@ namespace rtree {
         template<typename Geometry>
         sample_query_cursor<Geometry, Box, hilbert_value_type, Value, SampleValue>
         sample_query(Geometry const& query) {
-            return sample_query_cursor<Geometry, Box, hilbert_value_type, Value, SampleValue> (query, root_node_entry, get_block_manager(), rng);
+            return sample_query_cursor<Geometry, Box, hilbert_value_type, Value, SampleValue> (query, root_node_entry, get_block_manager(), rng_dev);
         }
 
         /*
@@ -316,7 +317,8 @@ namespace rtree {
         
         std::string filename;
 
-        RNG rng;
+        //RNG rng;
+        RNG_DEV rng_dev;
 
         bool clean_mem_resident_nodes = false;
     };

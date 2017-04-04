@@ -33,9 +33,9 @@ struct naive_sample_query_cursor
     using entry_t = typename node_type::entry_t;
 
     template<typename Geometry>
-    naive_sample_query_cursor(Geometry const& query, entry_t & root_entry, BlockManager & block_manager, RNG & rng)
+    naive_sample_query_cursor(Geometry const& query, entry_t & root_entry, BlockManager & block_manager, RNG_DEV & rng_dev)
         : block_manager(block_manager)
-        , rng(rng)
+        , rng(rng_dev())
     {
         query_decomposer<Geometry> qd(query, *this);
         root_entry.apply_visitor(qd);
@@ -251,7 +251,7 @@ private:
 
     Stats stats;
     size_t io_cost = 0;
-    RNG & rng;
+    RNG rng;
 };
 
 } // namespace rtree

@@ -175,8 +175,6 @@ set(SERVER_SRC
 	server_code/server_main.cpp
     server_code/server_settings.h
     server_code/server_settings.cpp
-    server_code/Timer.cpp
-    server_code/Timer.h
 	)
 
 set(SERVER_CLI_SRC

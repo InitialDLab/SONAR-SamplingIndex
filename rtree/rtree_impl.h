@@ -44,7 +44,6 @@ namespace rtree {
         : io_layers(io_layers_type::load(filename))
         , hilbert_value_computer(((bool)hvc) ? hvc : std::make_shared<HilbertValueComputer>())
         , filename(filename)
-        , rng(time(nullptr))
     {
         if(in_memory)
             io_layers->get_block_manager().set_cache_capacity(0);

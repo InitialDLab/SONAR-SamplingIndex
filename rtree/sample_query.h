@@ -35,10 +35,10 @@ struct sample_query_cursor
     using io_leaf_node_type = io_leaf_node TARGS;
     using entry_t = typename node_type::entry_t;
 
-    sample_query_cursor(Geometry const& query, entry_t & root_entry, BlockManager & block_manager, RNG & rng)
+    sample_query_cursor(Geometry const& query, entry_t & root_entry, BlockManager & block_manager, RNG_DEV & rng_dev)
         : block_manager( block_manager )
         , query(query)
-        , rng(rng)
+        , rng(rng_dev())
     {
         nodes.emplace_back(root_entry, 0);
         count = root_entry.subtree_size;
@@ -530,7 +530,7 @@ private:
 
     BlockManager & block_manager;
     Geometry query;
-    RNG & rng;
+    RNG rng;
 
     Stats stats;
     size_t io_cost = 0;

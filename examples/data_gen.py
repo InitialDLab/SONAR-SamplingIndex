@@ -31,7 +31,7 @@ def generate_line(items_generated):
     return '{oid:=24x}{sep}{lat}{sep}{lon}{sep}{time}'.format(oid=items_generated, sep=sep_char, lat=latr, lon=lonr, time=timer)
 
 parser = argparse.ArgumentParser(description='Generate random entries for the sample server')
-parser.add_argument('--count', dest='count', help='number of items to generate in file', default=100)
+parser.add_argument('--count', dest='count', type=int, help='number of items to generate in file', default=100)
 
 args = parser.parse_args()
 

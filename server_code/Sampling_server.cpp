@@ -24,7 +24,6 @@ SOFTWARE.
 #include "stxxl/timer"
 
 #include <glog/logging.h>
-#include <server_code/Timer.h>
 
 using grpc::Server;
 using grpc::ServerContext;
