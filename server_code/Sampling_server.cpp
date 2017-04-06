@@ -58,10 +58,10 @@ grpc::Status Sampling_server::ListSamplingStructure(grpc::ServerContext* context
     lockTime.start();
 
     // request the list from the database
-    m_structureRepoLock.lock();
+    //m_structureRepoLock.lock();
     lockTime.stop();
     mp_structureRepo->list_structures_proto(*response);
-    m_structureRepoLock.unlock();
+    //m_structureRepoLock.unlock();
 
     responseTime.stop();
 
@@ -76,10 +76,10 @@ grpc::Status Sampling_server::BuildStructure(grpc::ServerContext* context
 {
     LOG(INFO) << "Received a request to build a structure name=" << request->name();
     // request a structure to be built using the provided request
-    m_structureRepoLock.lock();
+    //m_structureRepoLock.lock();
     LOG(INFO) << "recieved lock, next we will start building";
     Status status = mp_structureRepo->add_new_structure(*request, response);
-    m_structureRepoLock.unlock();
+    //m_structureRepoLock.unlock();
 
     return status;
 }
@@ -90,9 +90,9 @@ grpc::Status Sampling_server::DropStructure(grpc::ServerContext* context
 {
     LOG(INFO) << "Received a request to drop a structure";
 
-    m_structureRepoLock.lock();
+    //m_structureRepoLock.lock();
     Status status = mp_structureRepo->drop_structure(*request, *response);
-    m_structureRepoLock.unlock();
+    //m_structureRepoLock.unlock();
 
     return status;
 }
@@ -110,7 +110,7 @@ grpc::Status Sampling_server::StartQuery(grpc::ServerContext* context
     responseTime.start();
 
     // get the requested structure
-    std::lock(m_structureRepoLock, m_queryRepoLock);
+    //std::lock(m_structureRepoLock, m_queryRepoLock);
     lockTime.stop();
     auto structure = mp_structureRepo->get_structure(request->structure_name());
 
@@ -122,10 +122,7 @@ grpc::Status Sampling_server::StartQuery(grpc::ServerContext* context
     // if it got a data structure back
     if (structure)
     {
-        LOG(INFO) << "**Starting to generate new query";
         auto p_query = structure->get_query_cursor(*request);
-
-        LOG(INFO) << "**Now adding to the manager";
 
         mp_queryRepo->add_new_query_proto(std::move(p_query), *response);
 
@@ -137,8 +134,8 @@ grpc::Status Sampling_server::StartQuery(grpc::ServerContext* context
     {
         status = grpc::Status(grpc::StatusCode::NOT_FOUND, "Unable to find sampling structure requested (" + request->structure_name() + ")");
     }
-    m_structureRepoLock.unlock();
-    m_queryRepoLock.unlock();
+    //m_structureRepoLock.unlock();
+    //m_queryRepoLock.unlock();
     responseTime.stop();
 
     LOG(INFO) << "Finished Start Query (response time=" << responseTime.mseconds() << "ms)";
@@ -158,12 +155,12 @@ grpc::Status Sampling_server::Query(grpc::ServerContext* context
     lockTime.start();
     responseTime.start();
 
-    std::lock(m_structureRepoLock, m_queryRepoLock);
+    //std::lock(m_structureRepoLock, m_queryRepoLock);
     lockTime.stop();
     mp_queryRepo->perform_query(*request, *response);
 
-    m_queryRepoLock.unlock();
-    m_structureRepoLock.unlock();
+    //m_queryRepoLock.unlock();
+    //m_structureRepoLock.unlock();
 
     responseTime.stop();
 
@@ -176,43 +173,43 @@ grpc::Status Sampling_server::Insert(grpc::ServerContext* context
     , const serverProto::InsertItemsRequest* request
     , serverProto::InsertItemsResponse* response)
 {
-    Status status = grpc::Status(grpc::StatusCode::NOT_FOUND, "Unable to find sampling structure requested (" + request->name() + ")");
-    LOG(INFO) << "Insert request (" << request->name() << ", n=" << request->elements_size() << ")";
+    Status status = grpc::Status(grpc::StatusCode::PERMISSION_DENIED, "Insertions not implemented.");
+    LOG(WARNING) << "Insert request (" << request->name() << ", n=" << request->elements_size() << ")";
 
-    m_structureRepoLock.lock();
-    auto structure = mp_structureRepo->get_structure(request->name());
+    // m_structureRepoLock.lock();
+    // auto structure = mp_structureRepo->get_structure(request->name());
 
-    // if it got a data structure back
-    if (structure)
-    {   
-        long pre_element_count = structure->get_size();
-        for (int i = 0; i < request->elements_size(); ++i) {
-            try {
-                LOG(INFO) << "Inserting " << i << '\t' << request->elements(i).oid() << '\t'
-                    << request->elements(i).location().lat() << '\t'
-                    << request->elements(i).location().lon() << '\t'
-                    << request->elements(i).location().time();
+    // // if it got a data structure back
+    // if (structure)
+    // {   
+    //     long pre_element_count = structure->get_size();
+    //     for (int i = 0; i < request->elements_size(); ++i) {
+    //         try {
+    //             LOG(INFO) << "Inserting " << i << '\t' << request->elements(i).oid() << '\t'
+    //                 << request->elements(i).location().lat() << '\t'
+    //                 << request->elements(i).location().lon() << '\t'
+    //                 << request->elements(i).location().time();
 
-                structure->insert(request->elements(i));
-            }
-            catch (...)
-            {
-                LOG(ERROR) << "Insert failed on iteration " << i;
-                LOG(FATAL) << "FAILED TO INSERT.  FATAL ERROR.";
-            }
-        }
-        structure->flush_buffers();
-        long post_element_count = structure->get_size();
+    //             structure->insert(request->elements(i));
+    //         }
+    //         catch (...)
+    //         {
+    //             LOG(ERROR) << "Insert failed on iteration " << i;
+    //             LOG(FATAL) << "FAILED TO INSERT.  FATAL ERROR.";
+    //         }
+    //     }
+    //     structure->flush_buffers();
+    //     long post_element_count = structure->get_size();
 
-        LOG(INFO) << "Inserted " << (post_element_count - pre_element_count) << " elements into " << request->name();
-    }
-    else
-    {
-        status = grpc::Status(grpc::StatusCode::NOT_FOUND, "Unable to find sampling structure requested (" + request->name() + ")");
-    }
+    //     LOG(INFO) << "Inserted " << (post_element_count - pre_element_count) << " elements into " << request->name();
+    // }
+    // else
+    // {
+    //     status = grpc::Status(grpc::StatusCode::NOT_FOUND, "Unable to find sampling structure requested (" + request->name() + ")");
+    // }
 
 
-    m_structureRepoLock.unlock();
+    // m_structureRepoLock.unlock();
 
     return status;
 }
@@ -225,10 +222,10 @@ int Sampling_server::garbageCollectQueries()
     responseTime.start();
     lockTime.start();
 
-    m_queryRepoLock.lock();
+    //m_queryRepoLock.lock();
     lockTime.stop();
     int count = mp_queryRepo->garbage_collect();
-    m_queryRepoLock.unlock();
+    //m_queryRepoLock.unlock();
 
     responseTime.stop();
 

@@ -38,6 +38,7 @@ query_cursor_basic::query_cursor_basic(std::shared_ptr<basic_rtree> source
                                      , int ttl)
                                      : m_queryRegion(query_region)
                                      , m_source(source)
+                                     , m_datalock()
                                      , m_returning_OID(returnOID)
                                      , m_returning_location(returnLocation)
                                      , m_returning_time(returnTime)
@@ -163,7 +164,9 @@ void query_cursor_basic::get_stats(const StreamingStatistics_t& stats, serverPro
 
 void query_cursor_basic::perform_query(int count, serverProto::QueryResponse& toReturn)
 {
+    m_datalock.lock();
     // I assume the query will be short, so I only set it at the beginning of the query.
+    // so it is not cleaned up while a query is being done.
     time(&last_used_time);
 
     // setup accumulators running for this particular query
@@ -238,4 +241,7 @@ void query_cursor_basic::perform_query(int count, serverProto::QueryResponse& to
 
     toReturn.set_sample_count_last(query_buffer.size());
     toReturn.set_sample_count_total(m_elements_analyzed);
+
+    time(&last_used_time);
+    m_datalock.unlock();
 }

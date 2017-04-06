@@ -22,6 +22,7 @@ SOFTWARE.
 #pragma once
 
 #include <memory>
+#include <mutex>
 
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
@@ -86,14 +87,17 @@ private:
     query_cursor_t m_cursor;
     std::shared_ptr<basic_rtree> m_source;
 
+    // this object is implemented as a monitor.  Only one thread can
+    // interact with its internals at once.
+    std::recursive_mutex m_datalock;
 
     void get_stats(const StreamingStatistics_t& stats, serverProto::ElementStatistics& toRet) const;
 
     serverProto::box m_queryRegion;
 
-    bool m_returning_OID;
-    bool m_returning_location;
-    bool m_returning_time;
+    const bool m_returning_OID;
+    const bool m_returning_location;
+    const bool m_returning_time;
 
     long m_elements_in_range;
     long m_elements_analyzed;

@@ -79,13 +79,9 @@ grpc::Status sampling_structure_repository::add_new_structure(std::shared_ptr<sa
 {
     grpc::Status status;
 
-    LOG(INFO) << "Starting to add a new structure.  Here before locking";
-
     m_Lock.lock();
 
-    LOG(INFO) << "Recieved lock to add the new structure";
-
-    // if it is tagged as a 'force', we will drop the structure before inserted the new value
+    // we will drop the structure before inserted the new value
     auto it = mp_repository->find(name);
     if (it == mp_repository->end())
         it = mp_repository->insert(mp_repository->begin(), std::pair < std::string, std::shared_ptr<sampling_structure> >(name, nullptr));
@@ -93,16 +89,13 @@ grpc::Status sampling_structure_repository::add_new_structure(std::shared_ptr<sa
     if (it->second != nullptr) // if it points to something, make sure we remove old files when it is deleted.
         it->second->set_cleanupAfterUse(true);
 
-    // check to see if that name already exists in the repository.  If it does we ignore the request
-    // otherwise, insert the element
-
     it->second = new_structure;
 
     status = grpc::Status(grpc::Status::OK);
 
-    m_Lock.unlock();
-
     autoSave();
+
+    m_Lock.unlock();
 
     return status;
 }
@@ -121,8 +114,6 @@ grpc::Status sampling_structure_repository::add_new_structure(const serverProto:
         LOG(WARNING) << "An attempt was made to build a data structure with name \'" << name << "\' which contains invalid characters";
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Name must only contains alpha numeric characters");
     }
-
-    LOG(INFO) << "Just before recieving lock 1 in add_new_structure";
 
     // check for preconditions to make sure it is valid to insert the structure.  Take the lock
     // so we know it will not change while we are looking over everything.
@@ -150,9 +141,7 @@ grpc::Status sampling_structure_repository::add_new_structure(const serverProto:
 
     // otherwise, if we are going to build it and it does not currently exist we will mark it as building by placing
     // a sentinel with nullptr with the given name
-    LOG(INFO) << "submitting and inserting into build";
-    mp_repository->insert(std::pair < std::string, std::shared_ptr<sampling_structure> >(name, nullptr));
-    LOG(INFO) << "built, now we are unlocking and getting out of here";
+    //mp_repository->insert(std::pair < std::string, std::shared_ptr<sampling_structure> >(name, nullptr));
 
     m_Lock.unlock();
 
@@ -168,11 +157,6 @@ grpc::Status sampling_structure_repository::add_new_structure(const serverProto:
     case serverProto::SampleStructureType::FLOAT_PAYLOAD:
     default:
         //  UNSUPPORTED PAYLOAD TYPE
-
-        m_Lock.lock();
-        mp_repository->erase(name);
-        m_Lock.unlock();
-
         if (response != NULL)
             response->set_error_information("Unsupported sampling type");
         return grpc::Status(grpc::StatusCode::UNIMPLEMENTED, "This sampling type has not been implemented yet");
@@ -180,10 +164,6 @@ grpc::Status sampling_structure_repository::add_new_structure(const serverProto:
 
     if (!new_structure)
     {
-        m_Lock.lock();
-        mp_repository->erase(name);
-        m_Lock.unlock();
-
         LOG(WARNING) << "An attempt was made to build a data structure, but the input file could not be found";
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "The input file could not be found");
     }
@@ -216,7 +196,7 @@ grpc::Status sampling_structure_repository::add_new_structure(const serverProto:
             mp_repository->erase(it);
         m_Lock.unlock();
 
-        LOG(ERROR) << "Unable to insert new data structure \'" << name << "\' (it may already exist)";
+        LOG(ERROR) << "Unable to insert new data structure \'" << name << "\'";
         response->set_error_information("Unknown error");
     }
 

@@ -37,6 +37,7 @@ import sys
 import timeit
 import pprint
 import random
+from multiprocessing import Pool
 
 import grpc
 
@@ -69,6 +70,11 @@ PARSER.add_argument('--index_name',
                     type=str,
                     help='Name of test index to be inserted into the sample server',
                     default='python_test_index')
+PARSER.add_argument('--threads',
+                    dest='thread_count',
+                    type=int,
+                    help='Number of threads to spawn for simultanius queries to the server',
+                    default=1)
 
 ARGS = PARSER.parse_args()
 
@@ -150,7 +156,56 @@ def delete_test(mystub, index_name):
     ret_val['index name'] = index_name
     return ret_val
 
-def query_test(mystub, index_name, trials, request_data):
+def single_query(args):
+    """submits a single query to the sample server
+
+    args is a dictionary with the following values set:
+    mystub: the grpc stub for communication with the server
+    index_name: a string set for the name of the index being queried
+    request_data: a boolean set for whether or not we want all data returned in the query_test
+    """
+    CHANNEL = grpc.insecure_channel(args["connection_string"])
+    STUB = sampling_api_pb2.SamplingDatabaseStub(CHANNEL)
+
+    lat = [random.uniform(-90.0, 90.0), random.uniform(-90.0, 90.0)]
+    lon = [random.uniform(-180.0, 180.0), random.uniform(-180.0, 180.0)]
+    time = [0, 2147483647]
+
+    start_start_time = timeit.default_timer()
+
+    start_request = sampling_api_pb2.StartQueryRequest()
+    start_request.structure_name = args["index_name"]
+    start_request.query_region.min_point.lat = min(lat)
+    start_request.query_region.min_point.lon = min(lon)
+    start_request.query_region.min_point.time = int(min(time))
+    start_request.query_region.max_point.lat = max(lat)
+    start_request.query_region.max_point.lon = max(lon)
+    start_request.query_region.max_point.time = int(max(time))
+    start_request.return_OID = args["request_data"]
+    start_request.return_location = args["request_data"]
+    start_request.return_time = args["request_data"]
+    start_request.return_payload = args["request_data"]
+    start_request.suggested_ttl = 10
+
+    start_result = STUB.StartQuery(start_request)
+
+    start_end_time = timeit.default_timer()
+    query_start_time = timeit.default_timer()
+
+    query_request = sampling_api_pb2.QueryRequest()
+    query_request.query_id = start_result.query_id
+    query_request.elements_to_return = 10000
+
+    query_result = STUB.Query(query_request)
+    query_end_time = timeit.default_timer()
+
+    ret_val = {"setup_time": (start_end_time - start_start_time),
+               "query_time": (query_end_time - query_start_time),
+               "count_est":  (query_result.lat_last.total_count),
+               "area":       (max(lat) - min(lat)) * (max(lon) - min(lon))}
+    return ret_val
+
+def query_test(mystub, index_name, trials, request_data, threads, connection_string):
     """Perform a series of random queries on a sample server
 
     mystub - the connection to send queries across
@@ -166,56 +221,27 @@ def query_test(mystub, index_name, trials, request_data):
     of samples are requested from the server.  The time to perform these
     actions is individually recorded and returned.
     """
+    tpool = Pool(threads)
+
     setup_time = []
     query_time = []
     count_est = []
     area = []
 
+    query_args = []
+
     for _ in xrange(0, trials):
-        lat = [random.uniform(-90.0, 90.0), random.uniform(-90.0, 90.0)]
-        lon = [random.uniform(-180.0, 180.0), random.uniform(-180.0, 180.0)]
-        time = [0, 2147483647]
+        query_args.append({"index_name": index_name,
+                           "request_data": request_data,
+                           "connection_string": connection_string})
 
-        start_start_time = timeit.default_timer()
+    results = tpool.map(single_query, query_args)
 
-        start_request = sampling_api_pb2.StartQueryRequest()
-        start_request.structure_name = index_name
-        start_request.query_region.min_point.lat = min(lat)
-        start_request.query_region.min_point.lon = min(lon)
-        start_request.query_region.min_point.time = int(min(time))
-        start_request.query_region.max_point.lat = max(lat)
-        start_request.query_region.max_point.lon = max(lon)
-        start_request.query_region.max_point.time = int(max(time))
-        start_request.return_OID = request_data
-        start_request.return_location = request_data
-        start_request.return_time = request_data
-        start_request.return_payload = request_data
-        start_request.suggested_ttl = 10
-
-        start_result = mystub.StartQuery(start_request)
-
-        start_end_time = timeit.default_timer()
-        query_start_time = timeit.default_timer()
-
-        query_request = sampling_api_pb2.QueryRequest()
-        query_request.query_id = start_result.query_id
-        query_request.elements_to_return = 10000
-
-        query_result = mystub.Query(query_request)
-        query_end_time = timeit.default_timer()
-
-        setup_time.append(start_end_time - start_start_time)
-        query_time.append(query_end_time - query_start_time)
-
-        # the value of 'total_count' should be the same for all elements statistics returned.
-        # I just selected one of them to pull out the count value
-        count_est.append(query_result.lat_last.total_count)
-
-        # I know the meaning of 'area' is not well defined.  However, it does help
-        # give an idea of how much of the region is covered.  Also, the meaning
-        # of 'area' is more well defined if data_gen.py is used to generate uniform
-        # random input data for this test.
-        area.append((max(lat) - min(lat)) * (max(lon) - min(lon)))
+    for result in results:
+        setup_time.append(result["setup_time"])
+        query_time.append(result["query_time"])
+        count_est.append(result["count_est"])
+        area.append(result["area"])
 
     ret_val = {}
 
@@ -239,8 +265,8 @@ def query_test(mystub, index_name, trials, request_data):
 
     return ret_val
 
-
-CHANNEL = grpc.insecure_channel(ARGS.server + ':' + str(ARGS.port))
+CONNECTION_STRING = ARGS.server + ':' + str(ARGS.port)
+CHANNEL = grpc.insecure_channel(CONNECTION_STRING)
 STUB = sampling_api_pb2.SamplingDatabaseStub(CHANNEL)
 
 PP = pprint.PrettyPrinter(indent=4)
@@ -256,7 +282,7 @@ print "build test results"
 PP.pprint(R_VAL)
 
 print "query test"
-R_VAL = query_test(STUB, ARGS.index_name, ARGS.trial_count, False)
+R_VAL = query_test(STUB, ARGS.index_name, ARGS.trial_count, False, ARGS.thread_count, CONNECTION_STRING)
 print "query test results"
 PP.pprint(R_VAL)
 

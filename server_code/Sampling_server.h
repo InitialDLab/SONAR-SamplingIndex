@@ -65,10 +65,10 @@ public:
 private:
     // data structure repository for this server
     std::unique_ptr<sampling_structure_repository> mp_structureRepo;
-    std::recursive_mutex m_structureRepoLock;
+    //std::recursive_mutex m_structureRepoLock;
 
     // data structure to manage the running queries
     std::unique_ptr<query_cursor_repository> mp_queryRepo;
-    std::recursive_mutex m_queryRepoLock;
+    //std::recursive_mutex m_queryRepoLock;
     
 };
