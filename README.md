@@ -1,9 +1,9 @@
-
 # Requirements building
 
 Sampling Index requires:
 * gcc
 * Boost
+* grpcio-tools (python)
 
 # Building
 
