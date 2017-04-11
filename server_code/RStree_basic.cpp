@@ -147,7 +147,7 @@ RStree_basic::~RStree_basic()
             LOG(WARNING) << "Error deleting the file " << fio;
         if (remove(mdata.c_str()) != 0)
             LOG(WARNING) << "Error deleting the file " << mdata;
-        if (remove(mdata.c_str()) != 0)
+        if (remove(cache.c_str()) != 0)
             LOG(WARNING) << "Error deleting the file " << cache;
     }
 }

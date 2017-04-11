@@ -55,13 +55,9 @@ grpc::Status Sampling_server::ListSamplingStructure(grpc::ServerContext* context
     stxxl::timer lockTime;
 
     responseTime.start();
-    lockTime.start();
 
     // request the list from the database
-    //m_structureRepoLock.lock();
-    lockTime.stop();
     mp_structureRepo->list_structures_proto(*response);
-    //m_structureRepoLock.unlock();
 
     responseTime.stop();
 
@@ -76,10 +72,7 @@ grpc::Status Sampling_server::BuildStructure(grpc::ServerContext* context
 {
     LOG(INFO) << "Received a request to build a structure name=" << request->name();
     // request a structure to be built using the provided request
-    //m_structureRepoLock.lock();
-    LOG(INFO) << "recieved lock, next we will start building";
     Status status = mp_structureRepo->add_new_structure(*request, response);
-    //m_structureRepoLock.unlock();
 
     return status;
 }
@@ -90,9 +83,7 @@ grpc::Status Sampling_server::DropStructure(grpc::ServerContext* context
 {
     LOG(INFO) << "Received a request to drop a structure";
 
-    //m_structureRepoLock.lock();
     Status status = mp_structureRepo->drop_structure(*request, *response);
-    //m_structureRepoLock.unlock();
 
     return status;
 }
@@ -106,12 +97,9 @@ grpc::Status Sampling_server::StartQuery(grpc::ServerContext* context
     stxxl::timer responseTime;
     stxxl::timer lockTime;
 
-    lockTime.start();
     responseTime.start();
 
     // get the requested structure
-    //std::lock(m_structureRepoLock, m_queryRepoLock);
-    lockTime.stop();
     auto structure = mp_structureRepo->get_structure(request->structure_name());
 
     if (request->query_region().min_point().lat() < -90.0f || request->query_region().max_point().lat() > 90.0f)
@@ -134,8 +122,6 @@ grpc::Status Sampling_server::StartQuery(grpc::ServerContext* context
     {
         status = grpc::Status(grpc::StatusCode::NOT_FOUND, "Unable to find sampling structure requested (" + request->structure_name() + ")");
     }
-    //m_structureRepoLock.unlock();
-    //m_queryRepoLock.unlock();
     responseTime.stop();
 
     LOG(INFO) << "Finished Start Query (response time=" << responseTime.mseconds() << "ms)";
@@ -152,15 +138,9 @@ grpc::Status Sampling_server::Query(grpc::ServerContext* context
     stxxl::timer responseTime;
     stxxl::timer lockTime;
 
-    lockTime.start();
     responseTime.start();
 
-    //std::lock(m_structureRepoLock, m_queryRepoLock);
-    lockTime.stop();
     mp_queryRepo->perform_query(*request, *response);
-
-    //m_queryRepoLock.unlock();
-    //m_structureRepoLock.unlock();
 
     responseTime.stop();
 
@@ -176,7 +156,6 @@ grpc::Status Sampling_server::Insert(grpc::ServerContext* context
     Status status = grpc::Status(grpc::StatusCode::PERMISSION_DENIED, "Insertions not implemented.");
     LOG(WARNING) << "Insert request (" << request->name() << ", n=" << request->elements_size() << ")";
 
-    // m_structureRepoLock.lock();
     // auto structure = mp_structureRepo->get_structure(request->name());
 
     // // if it got a data structure back
@@ -208,9 +187,6 @@ grpc::Status Sampling_server::Insert(grpc::ServerContext* context
     //     status = grpc::Status(grpc::StatusCode::NOT_FOUND, "Unable to find sampling structure requested (" + request->name() + ")");
     // }
 
-
-    // m_structureRepoLock.unlock();
-
     return status;
 }
 
@@ -222,10 +198,8 @@ int Sampling_server::garbageCollectQueries()
     responseTime.start();
     lockTime.start();
 
-    //m_queryRepoLock.lock();
     lockTime.stop();
     int count = mp_queryRepo->garbage_collect();
-    //m_queryRepoLock.unlock();
 
     responseTime.stop();
 
