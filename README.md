@@ -1,4 +1,4 @@
-# Requirements building
+ Requirements building
 
 Sampling Index requires:
 * gcc
@@ -15,7 +15,7 @@ code changes (Build Index Server for release mode or debug mode)
 
 Clone and initialize submodule
 
-    $ git clone https://github.com/ricosfeifei/STORM-Indexing.git
+    $ git clone https://github.com/InitialDLab/SONAR-SampleingIndex.git
     $ cd STORM-Indexing
     $ git submodule init
     $ git submodule update
