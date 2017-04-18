@@ -1,9 +1,9 @@
-
-# Requirements building
+Requirements building
 
 Sampling Index requires:
 * gcc
 * Boost
+* grpcio-tools (python)
 
 # Building
 
@@ -15,8 +15,8 @@ code changes (Build Index Server for release mode or debug mode)
 
 Clone and initialize submodule
 
-    $ git clone https://github.com/ricosfeifei/STORM-Indexing.git
-    $ cd STORM-Indexing
+    $ git clone https://github.com/InitialDLab/SONAR-SamplingIndex.git
+    $ cd SONAR-SamplingIndex
     $ git submodule init
     $ git submodule update
     
