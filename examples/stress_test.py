@@ -65,16 +65,27 @@ PARSER.add_argument('--trials',
                     type=int,
                     help='Number of trials to run for each test',
                     default=1000)
+PARSER.add_argument('--query_batch',
+                    dest='query_batch',
+                    type=int,
+                    help='Number of samples to request for each query',
+                    default=1000)
 PARSER.add_argument('--index_name',
                     dest='index_name',
                     type=str,
-                    help='Name of test index to be inserted into the sample server',
+                    help='Name of test index to use in the sample server',
                     default='python_test_index')
 PARSER.add_argument('--threads',
                     dest='thread_count',
                     type=int,
                     help='Number of threads to spawn for simultanius queries to the server',
                     default=1)
+PARSER.add_argument('--skip_build',
+                    action='store_true',
+                    help='skip the build step and use an already built index for queries')
+PARSER.add_argument('--skip_list',
+                    action='store_true',
+                    help='skip the test to list the indexes')
 
 ARGS = PARSER.parse_args()
 
@@ -171,8 +182,6 @@ def single_query(args):
     lon = [random.uniform(-180.0, 180.0), random.uniform(-180.0, 180.0)]
     time = [0, 2147483647]
 
-    start_start_time = timeit.default_timer()
-
     start_request = sampling_api_pb2.StartQueryRequest()
     start_request.structure_name = args["index_name"]
     start_request.query_region.min_point.lat = min(lat)
@@ -185,17 +194,19 @@ def single_query(args):
     start_request.return_location = args["request_data"]
     start_request.return_time = args["request_data"]
     start_request.return_payload = args["request_data"]
-    start_request.suggested_ttl = 10
+    start_request.suggested_ttl = 30
 
+    # query starts here
+    start_start_time = timeit.default_timer()
     start_result = STUB.StartQuery(start_request)
-
     start_end_time = timeit.default_timer()
-    query_start_time = timeit.default_timer()
 
     query_request = sampling_api_pb2.QueryRequest()
     query_request.query_id = start_result.query_id
-    query_request.elements_to_return = 10000
+    query_request.elements_to_return = args["query_batch_size"]
 
+    # query is performed here
+    query_start_time = timeit.default_timer()
     query_result = STUB.Query(query_request)
     query_end_time = timeit.default_timer()
 
@@ -205,7 +216,7 @@ def single_query(args):
                "area":       (max(lat) - min(lat)) * (max(lon) - min(lon))}
     return ret_val
 
-def query_test(mystub, index_name, trials, request_data, threads, connection_string):
+def query_test(mystub, index_name, trials, request_data, threads, connection_string, query_batch_size):
     """Perform a series of random queries on a sample server
 
     mystub - the connection to send queries across
@@ -233,6 +244,7 @@ def query_test(mystub, index_name, trials, request_data, threads, connection_str
     for _ in xrange(0, trials):
         query_args.append({"index_name": index_name,
                            "request_data": request_data,
+                           "query_batch_size": query_batch_size,
                            "connection_string": connection_string})
 
     results = tpool.map(single_query, query_args)
@@ -271,24 +283,27 @@ STUB = sampling_api_pb2.SamplingDatabaseStub(CHANNEL)
 
 PP = pprint.PrettyPrinter(indent=4)
 
-print "running list index tests"
-R_VAL = list_test(STUB, ARGS.trial_count)
-print "query index list results"
-PP.pprint(R_VAL)
+if ARGS.skip_list is not True:
+    print "running list index tests"
+    R_VAL = list_test(STUB, ARGS.trial_count)
+    print "query index list results"
+    PP.pprint(R_VAL)
 
-print "build test"
-R_VAL = build_test(STUB, ARGS.input_file, ARGS.index_name)
-print "build test results"
-PP.pprint(R_VAL)
+if ARGS.skip_build is not True:
+    print "build test"
+    R_VAL = build_test(STUB, ARGS.input_file, ARGS.index_name)
+    print "build test results"
+    PP.pprint(R_VAL)
 
 print "query test"
-R_VAL = query_test(STUB, ARGS.index_name, ARGS.trial_count, False, ARGS.thread_count, CONNECTION_STRING)
+R_VAL = query_test(STUB, ARGS.index_name, ARGS.trial_count, False, ARGS.thread_count, CONNECTION_STRING, ARGS.query_batch)
 print "query test results"
 PP.pprint(R_VAL)
 
-print "delete test"
-R_VAL = delete_test(STUB, ARGS.index_name)
-print "delete test results"
-PP.pprint(R_VAL)
+if ARGS.skip_build is not True:
+    print "delete test"
+    R_VAL = delete_test(STUB, ARGS.index_name)
+    print "delete test results"
+    PP.pprint(R_VAL)
 
 print "done"
