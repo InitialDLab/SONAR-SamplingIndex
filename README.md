@@ -2,8 +2,9 @@ Requirements building
 
 Sampling Index requires:
 * gcc
+* automake
 * Boost
-* grpcio-tools (python)
+* grpcio-tools (python pip)
 
 # Building
 
